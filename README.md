@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎓 StudySpace Cloud - Nền Tảng Học Tập & Lưu Trữ Tài Liệu Sinh Viên
 
-## Getting Started
+**StudySpace** là nền tảng trực tuyến thông minh hỗ trợ sinh viên quản lý môn học, lưu trữ tài liệu học tập (giáo trình, slide, bài tập) và ứng dụng trí tuệ nhân tạo (AI) để phân tích, tóm tắt kiến thức ôn thi nhanh chóng.
 
-First, run the development server:
+---
 
+## 🌟 Tính Năng Nổi Bật
+
+1. **Xác thực & Bảo mật (Supabase Authentication)**
+   - Đăng ký và đăng nhập bảo mật cho sinh viên.
+   - Ghi nhớ thông tin đăng nhập tự động (`Remember Me`).
+   - Tự động duy trì phiên làm việc và bảo vệ các trang Dashboard.
+
+2. **Quản lý Môn Học Thông Minh**
+   - Thêm, sửa, xóa môn học theo từng học kỳ.
+   - Phân biệt môn học bằng bảng màu trực quan.
+   - Tìm kiếm nhanh môn học và hiển thị số lượng tài liệu của từng môn.
+
+3. **Kho Lưu Trữ Tài Liệu Sinh Viên (Supabase Storage & Database)**
+   - Tải lên các file tài liệu: **PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX**.
+   - Chuẩn hóa tên file tự động (hỗ trợ tiếng Việt có dấu an toàn tuyệt đối).
+   - Xem trực tiếp tài liệu trên trình duyệt hoặc tải về máy nguyên vẹn.
+   - Bộ lọc tài liệu linh hoạt theo môn học và từ khóa tìm kiếm.
+
+4. **Trợ Lý AI Tóm Tắt & Ôn Tập (StudySpace AI Assistant)**
+   - Trích xuất nội dung văn bản từ các trang tài liệu PDF.
+   - AI phân tích và đúc kết:
+     - 📌 Tổng quan chủ đề bài học.
+     - 🔑 Các khái niệm & định nghĩa trọng tâm.
+     - 📐 Công thức, quy tắc, nguyên lý.
+     - 💡 Điểm lưu ý khi ôn thi / làm bài kiểm tra.
+   - Sao chép bản tóm tắt chỉ với 1 click.
+
+---
+
+## 🛠️ Công Nghệ Sử Dụng
+
+- **Frontend & Full-stack Framework:** Next.js 16 (App Router, Turbopack, React 19)
+- **Styling:** Tailwind CSS v4
+- **Backend as a Service:** Supabase (Auth, PostgreSQL Database, Object Storage)
+- **PDF Extraction:** PDF.js (`pdfjs-dist`)
+- **AI Engine:** OpenAI API (`gpt-4o-mini`)
+- **Ngôn ngữ:** TypeScript
+
+---
+
+## 🚀 Cài Đặt & Chạy Cục Bộ
+
+### 1. Cài đặt dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Thiết lập biến môi trường
+Tạo file `.env.local` ở thư mục gốc:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key_here
+OPENAI_API_KEY=sk-your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Cấu trúc Database Supabase cần có
+- Bảng `subjects`:
+  - `id` (uuid, primary key)
+  - `user_id` (uuid, references auth.users)
+  - `name` (text)
+  - `description` (text, nullable)
+  - `color` (text)
+  - `created_at` (timestamptz)
+- Bảng `documents`:
+  - `id` (uuid, primary key)
+  - `user_id` (uuid, references auth.users)
+  - `subject_id` (uuid, references subjects)
+  - `title` (text)
+  - `file_name` (text)
+  - `file_path` (text)
+  - `file_type` (text)
+  - `created_at` (timestamptz)
+- Bucket Storage trong Supabase: `studyspace-documents` (private hoặc public tùy policy).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Khởi chạy Server
+```bash
+npm run dev
+```
+Truy cập ứng dụng tại: [http://localhost:3000](http://localhost:3000)
 
-## Learn More
+### 5. Build Kiểm Tra Sản Phẩm
+```bash
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 👥 Tác Giả & Bản Quyền
+- Dự án phát triển bởi **StudySpace Team** © 2026.
