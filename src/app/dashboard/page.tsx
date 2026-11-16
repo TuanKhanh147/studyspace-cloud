@@ -80,8 +80,8 @@ export default function Dashboard() {
       setUserEmail(user.email ?? "");
       setUserName(
         user.user_metadata?.full_name ||
-          user.email?.split("@")[0] ||
-          "Sinh viên"
+        user.email?.split("@")[0] ||
+        "Sinh viên"
       );
 
       await loadData(user.id);
