@@ -1,5 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="20" fill="#2563eb" />
-  <text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-size="50">🎓</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="50%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+    <linearGradient id="capGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#e0f2fe" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
 
+  <!-- Background with smooth rounded corners -->
+  <rect width="128" height="128" rx="28" fill="url(#bgGrad)" />
+
+  <!-- Outer subtle tech border -->
+  <rect x="2" y="2" width="124" height="124" rx="26" fill="none" stroke="#60a5fa" stroke-width="2" stroke-opacity="0.3" />
+
+  <!-- Modern Graduation Cap and Tech Sparkle Icon -->
+  <g transform="translate(16, 20)" filter="url(#glow)">
+    <!-- Cap top rhombus -->
+    <path d="M48 10 L88 30 L48 50 L8 30 Z" fill="url(#capGrad)" />
+    
+    <!-- Cap base / skullcap -->
+    <path d="M22 40 L22 56 C22 68 74 68 74 56 L74 40 C66 45 56 48 48 48 C40 48 30 45 22 40 Z" fill="#ffffff" fill-opacity="0.85" />
+    
+    <!-- Tassel ribbon -->
+    <path d="M84 32 L84 62 L87 64 L87 74 L81 74 L81 64 L84 62" fill="#38bdf8" />
+    
+    <!-- Tech AI Star / Sparkle in corner -->
+    <path d="M82 4 L84 10 L90 12 L84 14 L82 20 L80 14 L74 12 L80 10 Z" fill="#67e8f9" />
+  </g>
+</svg>

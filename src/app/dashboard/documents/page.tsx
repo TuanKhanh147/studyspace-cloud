@@ -3,6 +3,19 @@
 import { useEffect, useState, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import {
+  FilePdfIcon,
+  FileTextIcon,
+  UploadCloudIcon,
+  EyeIcon,
+  DownloadIcon,
+  TrashIcon,
+  SparklesIcon,
+  CopyIcon,
+  CheckIcon,
+  SearchIcon,
+  FolderIcon,
+} from "@/components/icons";
 
 type Subject = {
   id: string;
@@ -21,7 +34,7 @@ type DocumentItem = {
 };
 
 const BUCKET = "studyspace-documents";
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 const ALLOWED_EXTENSIONS = [
   "pdf",
@@ -63,32 +76,26 @@ function DocumentsContent() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
 
-  // Search & Filter state
   const [searchKeyword, setSearchKeyword] = useState("");
   const [filterSubject, setFilterSubject] = useState(initialSubjectFilter);
 
-  // Upload Form state
   const [title, setTitle] = useState("");
   const [selectedSubject, setSelectedSubject] = useState(initialSubjectFilter);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // Loading states
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [extractingId, setExtractingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  // Notifications
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // PDF Extraction result
   const [extractedText, setExtractedText] = useState("");
   const [extractedTitle, setExtractedTitle] = useState("");
   const [pageCount, setPageCount] = useState(0);
 
-  // AI Summary
   const [summary, setSummary] = useState("");
   const [summaryTitle, setSummaryTitle] = useState("");
   const [summarizing, setSummarizing] = useState(false);
@@ -180,14 +187,13 @@ function DocumentsContent() {
     }
   }
 
-  // Tải tài liệu lên Storage và lưu thông tin vào Database
   async function uploadDocument(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setSuccess("");
 
     if (!userId) {
-      setError("Không xác định được phiên đăng nhập. Vui lòng đăng nhập lại.");
+      setError("Không xác định được phiên đăng nhập.");
       return;
     }
 
@@ -197,12 +203,12 @@ function DocumentsContent() {
     }
 
     if (!selectedSubject) {
-      setError("Vui lòng chọn môn học tương ứng.");
+      setError("Vui lòng chọn môn học.");
       return;
     }
 
     if (!selectedFile) {
-      setError("Vui lòng chọn file tài liệu cần tải lên.");
+      setError("Vui lòng chọn file.");
       return;
     }
 
@@ -223,7 +229,7 @@ function DocumentsContent() {
         });
 
       if (uploadError) {
-        throw new Error(`Lỗi tải lên Storage: ${uploadError.message}`);
+        throw new Error(`Lỗi tải lên: ${uploadError.message}`);
       }
 
       const { error: insertError } = await supabase.from("documents").insert({
@@ -236,9 +242,8 @@ function DocumentsContent() {
       });
 
       if (insertError) {
-        // Rollback storage nếu insert DB lỗi
         await supabase.storage.from(BUCKET).remove([filePath]);
-        throw new Error(`Lỗi lưu CSDL: ${insertError.message}`);
+        throw new Error(`Lỗi cơ sở dữ liệu: ${insertError.message}`);
       }
 
       setTitle("");
@@ -249,18 +254,17 @@ function DocumentsContent() {
       ) as HTMLInputElement | null;
       if (fileInput) fileInput.value = "";
 
-      setSuccess(`Tải lên thành công tài liệu "${selectedFile.name}"!`);
+      setSuccess(`Tải lên thành công: "${selectedFile.name}"`);
       await loadDocuments();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải tài liệu lên."
+        err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải tài liệu."
       );
     } finally {
       setUploading(false);
     }
   }
 
-  // Đọc nội dung PDF bằng API trích xuất
   async function extractPdf(doc: DocumentItem) {
     if (doc.file_type.toLowerCase() !== "pdf") {
       setError("Chức năng đọc tự động hiện hỗ trợ định dạng PDF.");
@@ -309,7 +313,7 @@ function DocumentsContent() {
       setExtractedTitle(doc.title);
       setExtractedText(result.text);
       setPageCount(result.pageCount ?? 0);
-      setSuccess(`Đã trích xuất thành công nội dung của ${result.pageCount} trang tài liệu.`);
+      setSuccess(`Đã trích xuất thành công nội dung ${result.pageCount} trang.`);
 
       setTimeout(() => {
         document.getElementById("pdf-result")?.scrollIntoView({ behavior: "smooth" });
@@ -321,7 +325,6 @@ function DocumentsContent() {
     }
   }
 
-  // Tóm tắt bằng AI
   async function summarizePdf() {
     if (!extractedText.trim()) {
       setSummaryError("Không có nội dung để tóm tắt.");
@@ -369,7 +372,6 @@ function DocumentsContent() {
     }
   }
 
-  // Xem trực tiếp tài liệu
   async function viewDocument(doc: DocumentItem) {
     setError("");
     try {
@@ -387,7 +389,6 @@ function DocumentsContent() {
     }
   }
 
-  // Tải file về máy với đúng tên file gốc
   async function downloadDocument(doc: DocumentItem) {
     setError("");
     setDownloadingId(doc.id);
@@ -397,7 +398,6 @@ function DocumentsContent() {
         .download(doc.file_path);
 
       if (downloadError || !blob) {
-        // Fallback mở qua signed url nếu download blob không thành công
         const { data: signedData } = await supabase.storage
           .from(BUCKET)
           .createSignedUrl(doc.file_path, 60);
@@ -424,7 +424,6 @@ function DocumentsContent() {
     }
   }
 
-  // Xóa tài liệu
   async function deleteDocument(doc: DocumentItem) {
     const confirmed = window.confirm(
       `Bạn có chắc chắn muốn xóa tài liệu "${doc.title}" không?`
@@ -481,7 +480,6 @@ function DocumentsContent() {
     );
   }
 
-  // Lọc tài liệu theo môn học và từ khóa tìm kiếm
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
       const matchSubject = !filterSubject || doc.subject_id === filterSubject;
@@ -497,8 +495,8 @@ function DocumentsContent() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-9 w-9 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-          <p className="text-sm text-slate-400">Đang tải tài liệu học tập...</p>
+          <div className="h-9 w-9 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
+          <p className="text-xs font-medium text-slate-400">Đang tải kho tài liệu...</p>
         </div>
       </main>
     );
@@ -507,46 +505,50 @@ function DocumentsContent() {
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
       <div className="mx-auto max-w-6xl">
-        {/* Nút điều hướng quay lại */}
+        {/* Nút quay lại */}
         <div className="mb-6 flex items-center justify-between">
           <button
             onClick={() => router.push("/dashboard")}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-slate-700 hover:bg-slate-800 hover:text-white"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-slate-700 hover:bg-slate-800 hover:text-white"
           >
-            <span>←</span> Quay lại Bảng điều khiển môn học
+            <span>←</span>
+            <span>Bảng điều khiển môn học</span>
           </button>
         </div>
 
         {/* Tiêu đề trang */}
         <section className="mb-8">
-          <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-400">
-            Kho lưu trữ tài liệu sinh viên
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-cyan-400">
+            <FolderIcon size={14} />
+            <span>Kho Lưu Trữ Sinh Viên</span>
           </span>
-          <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">
-            Quản lý tài liệu & Giáo trình
+          <h1 className="mt-2 text-2xl font-black sm:text-3xl">
+            Quản lý Tài liệu & Giáo trình
           </h1>
           <p className="mt-1 text-xs text-slate-400 sm:text-sm">
-            Tải lên, tổ chức theo môn học, đọc nội dung PDF trực tiếp và ứng dụng AI tóm tắt tài liệu ôn thi.
+            Lưu trữ slide bài giảng, đọc trực tiếp PDF và kích hoạt trí tuệ nhân tạo đúc kết kiến thức ôn thi.
           </p>
         </section>
 
-        {/* Thông báo Thành công / Thất bại chung */}
+        {/* Thông báo Thành công / Thất bại */}
         {error && (
           <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-300 sm:text-sm">
-            ⚠️ {error}
+            {error}
           </div>
         )}
         {success && (
-          <div className="mb-6 rounded-2xl border border-green-500/30 bg-green-500/10 p-4 text-xs text-green-300 sm:text-sm">
-            ✅ {success}
+          <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-300 sm:text-sm">
+            {success}
           </div>
         )}
 
         {/* Form Tải Tài Liệu Lên */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 sm:p-7">
-          <div className="flex items-center gap-2 text-lg font-bold">
-            <span>📤</span>
-            <h2>Tải tài liệu mới lên kho lưu trữ</h2>
+        <section className="rounded-2xl border border-slate-800/80 bg-slate-900/90 p-6 backdrop-blur-xl sm:p-7">
+          <div className="flex items-center gap-2.5 text-base font-bold text-white sm:text-lg">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
+              <UploadCloudIcon size={18} />
+            </div>
+            <h2>Tải tài liệu mới lên bộ nhớ</h2>
           </div>
 
           <form onSubmit={uploadDocument} className="mt-5 grid gap-4 md:grid-cols-2">
@@ -558,8 +560,8 @@ function DocumentsContent() {
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ví dụ: Chương 1 - Nhập môn cơ sở dữ liệu"
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition focus:border-blue-500"
+                placeholder="Ví dụ: Chương 1 - Kiến trúc dữ liệu phân tán"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition focus:border-cyan-500"
               />
             </div>
 
@@ -571,7 +573,7 @@ function DocumentsContent() {
                 required
                 value={selectedSubject}
                 onChange={(e) => setSelectedSubject(e.target.value)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-500"
               >
                 <option value="">-- Chọn môn học --</option>
                 {subjects.map((s) => (
@@ -591,35 +593,39 @@ function DocumentsContent() {
                 type="file"
                 accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.xls,.xlsx"
                 onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-xs text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-blue-500"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-xs text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-gradient-to-r file:from-blue-600 file:to-cyan-600 file:px-4 file:py-2 file:text-xs file:font-bold file:text-white hover:file:brightness-110"
               />
               <p className="mt-2 text-[11px] text-slate-500">
-                Hỗ trợ: PDF, DOC, DOCX, PPT, PPTX — Tối đa 25 MB mỗi tài liệu.
+                Hỗ trợ định dạng: PDF, DOC, DOCX, PPT, PPTX — Tối đa 25 MB mỗi tài liệu.
               </p>
             </div>
 
-            <div className="md:col-span-2 pt-2">
+            <div className="pt-2 md:col-span-2">
               <button
                 type="submit"
                 disabled={uploading || subjects.length === 0}
-                className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-3 text-xs font-bold text-white shadow-lg shadow-cyan-500/25 transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
               >
-                {uploading && (
+                {uploading ? (
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <UploadCloudIcon size={16} />
                 )}
-                <span>{uploading ? "Đang tải lên và lưu trữ..." : "Tải tài liệu lên"}</span>
+                <span>
+                  {uploading ? "Đang tải lên và mã hóa..." : "Tải tài liệu lên"}
+                </span>
               </button>
 
               {subjects.length === 0 && (
                 <p className="mt-2 text-xs text-amber-400">
-                  ⚠️ Bạn cần tạo ít nhất một môn học trong Dashboard trước khi tải tài liệu.
+                  Bạn cần tạo ít nhất một môn học trong Dashboard trước khi tải tài liệu.
                 </p>
               )}
             </div>
           </form>
         </section>
 
-        {/* Thanh Tìm Kiếm & Lọc Danh Sách Tài Liệu */}
+        {/* Bộ Lọc & Tìm Kiếm Tài Liệu */}
         <section className="mt-10">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -632,11 +638,10 @@ function DocumentsContent() {
             </div>
 
             <div className="flex flex-wrap gap-2.5 sm:items-center">
-              {/* Lọc theo môn học */}
               <select
                 value={filterSubject}
                 onChange={(e) => setFilterSubject(e.target.value)}
-                className="rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2.5 text-xs text-white outline-none focus:border-blue-500"
+                className="rounded-xl border border-slate-800 bg-slate-900/90 px-3.5 py-2.5 text-xs text-white outline-none focus:border-cyan-500"
               >
                 <option value="">Tất cả môn học</option>
                 {subjects.map((sub) => (
@@ -646,20 +651,27 @@ function DocumentsContent() {
                 ))}
               </select>
 
-              {/* Ô tìm kiếm */}
-              <input
-                type="text"
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="🔍 Tìm theo tên hoặc file..."
-                className="rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none focus:border-blue-500 w-full sm:w-60"
-              />
+              <div className="relative w-full sm:w-60">
+                <SearchIcon
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="text"
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  placeholder="Tìm theo tên hoặc file..."
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900/90 py-2.5 pl-9 pr-3.5 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-500"
+                />
+              </div>
             </div>
           </div>
 
           {documents.length === 0 ? (
             <div className="mt-6 rounded-3xl border border-dashed border-slate-800 bg-slate-900/50 p-12 text-center">
-              <div className="text-5xl">📁</div>
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-400">
+                <FolderIcon size={32} />
+              </div>
               <p className="mt-4 text-base font-bold text-slate-200">
                 Chưa có tài liệu nào trong kho lưu trữ
               </p>
@@ -668,7 +680,7 @@ function DocumentsContent() {
               </p>
             </div>
           ) : filteredDocuments.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400 text-sm">
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-xs text-slate-400 sm:text-sm">
               Không tìm thấy tài liệu phù hợp với bộ lọc hiện tại.
             </div>
           ) : (
@@ -682,24 +694,30 @@ function DocumentsContent() {
                 return (
                   <article
                     key={doc.id}
-                    className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900 p-5 transition hover:border-slate-700 hover:shadow-lg"
+                    className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/80 p-5 transition hover:border-slate-700 hover:shadow-lg"
                   >
                     <div>
                       <div className="flex items-start gap-3.5">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600/20 text-2xl font-bold">
-                          {isPdf ? "📕" : "📘"}
+                        <div
+                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-bold ${
+                            isPdf
+                              ? "bg-rose-500/10 text-rose-400"
+                              : "bg-cyan-500/10 text-cyan-400"
+                          }`}
+                        >
+                          {isPdf ? <FilePdfIcon size={24} /> : <FileTextIcon size={24} />}
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <h3 className="text-base font-bold text-white break-words">
+                          <h3 className="break-words text-base font-bold text-white">
                             {doc.title}
                           </h3>
 
-                          <p className="mt-1 text-[11px] text-slate-400 break-all">
+                          <p className="mt-1 break-all text-[11px] text-slate-400">
                             {doc.file_name}
                           </p>
 
-                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                          <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
                             <span className="rounded-md bg-blue-500/10 px-2 py-0.5 font-semibold text-blue-400">
                               {getSubjectName(doc.subject_id)}
                             </span>
@@ -715,38 +733,42 @@ function DocumentsContent() {
                     </div>
 
                     {/* Các hành động */}
-                    <div className="mt-5 flex flex-wrap gap-2 pt-3 border-t border-slate-800/80">
+                    <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-800/80 pt-3">
                       {isPdf && (
                         <button
                           onClick={() => extractPdf(doc)}
                           disabled={isExtracting}
-                          className="flex-1 rounded-xl bg-purple-600/20 px-3 py-2 text-xs font-bold text-purple-300 transition hover:bg-purple-600 hover:text-white disabled:opacity-50"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-purple-500/15 px-3 py-2 text-xs font-bold text-purple-300 transition hover:bg-purple-600 hover:text-white disabled:opacity-50"
                         >
-                          {isExtracting ? "⏳ Đang đọc..." : "✨ Đọc & AI Tóm tắt"}
+                          <SparklesIcon size={14} />
+                          <span>{isExtracting ? "Đang đọc..." : "AI Tóm tắt"}</span>
                         </button>
                       )}
 
                       <button
                         onClick={() => viewDocument(doc)}
-                        className="flex-1 rounded-xl bg-blue-600/20 px-3 py-2 text-xs font-semibold text-blue-300 transition hover:bg-blue-600 hover:text-white"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-300 transition hover:bg-blue-600 hover:text-white"
                       >
-                        👁️ Xem
+                        <EyeIcon size={14} />
+                        <span>Xem</span>
                       </button>
 
                       <button
                         onClick={() => downloadDocument(doc)}
                         disabled={isDownloading}
-                        className="flex-1 rounded-xl bg-emerald-600/20 px-3 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-600 hover:text-white disabled:opacity-50"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-600 hover:text-white disabled:opacity-50"
                       >
-                        {isDownloading ? "..." : "⬇️ Tải về"}
+                        <DownloadIcon size={14} />
+                        <span>{isDownloading ? "..." : "Tải về"}</span>
                       </button>
 
                       <button
                         onClick={() => deleteDocument(doc)}
                         disabled={isDeleting}
-                        className="rounded-xl bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400 transition hover:bg-red-500 hover:text-white disabled:opacity-50"
+                        aria-label="Xóa tài liệu"
+                        className="flex items-center justify-center rounded-xl bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400 transition hover:bg-red-500 hover:text-white disabled:opacity-50"
                       >
-                        {isDeleting ? "..." : "🗑️"}
+                        <TrashIcon size={14} />
                       </button>
                     </div>
                   </article>
@@ -756,11 +778,11 @@ function DocumentsContent() {
           )}
         </section>
 
-        {/* Khung Nội Dung PDF Đã Trích Xuất */}
+        {/* Kết Quả Trích Xuất PDF */}
         {extractedText && (
           <section
             id="pdf-result"
-            className="mt-10 rounded-2xl border border-purple-500/30 bg-slate-900 p-6"
+            className="mt-10 rounded-2xl border border-purple-500/30 bg-slate-900/90 p-6 backdrop-blur-xl"
           >
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-purple-500/20 pb-4">
               <div>
@@ -773,20 +795,20 @@ function DocumentsContent() {
               </div>
 
               <span className="rounded-full bg-purple-500/20 px-3 py-1 text-xs font-bold text-purple-300">
-                📄 {pageCount} trang
+                {pageCount} trang tài liệu
               </span>
             </div>
 
-            <div className="mt-4 max-h-96 overflow-y-auto whitespace-pre-wrap break-words rounded-xl bg-slate-950 p-4 text-xs leading-relaxed text-slate-300 font-mono">
+            <div className="mt-4 max-h-96 overflow-y-auto whitespace-pre-wrap break-words rounded-xl bg-slate-950 p-4 font-mono text-xs leading-relaxed text-slate-300">
               {extractedText}
             </div>
 
             {/* Trợ lý AI Tóm tắt */}
             <div className="mt-6 rounded-2xl border border-purple-500/30 bg-purple-950/20 p-5">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-600 text-xl text-white">
-                  ✨
-                </span>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-600 text-white shadow-md shadow-purple-600/30">
+                  <SparklesIcon size={20} />
+                </div>
                 <div>
                   <h4 className="font-bold text-white">StudySpace AI Assistant</h4>
                   <p className="text-xs text-slate-400">
@@ -799,9 +821,14 @@ function DocumentsContent() {
                 <button
                   onClick={summarizePdf}
                   disabled={summarizing}
-                  className="rounded-xl bg-purple-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-purple-600/30 transition hover:bg-purple-500 disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-purple-600/30 transition hover:bg-purple-500 disabled:opacity-50"
                 >
-                  {summarizing ? "✨ AI đang phân tích..." : "✨ Bắt đầu tóm tắt bằng AI"}
+                  <SparklesIcon size={15} />
+                  <span>
+                    {summarizing
+                      ? "AI đang đọc & tổng hợp..."
+                      : "Bắt đầu tóm tắt bằng AI"}
+                  </span>
                 </button>
 
                 <button
@@ -814,7 +841,7 @@ function DocumentsContent() {
                   }}
                   className="rounded-xl bg-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-700"
                 >
-                  Đóng tài liệu này
+                  Đóng nội dung
                 </button>
               </div>
 
@@ -827,7 +854,7 @@ function DocumentsContent() {
 
               {summaryError && (
                 <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
-                  ⚠️ {summaryError}
+                  {summaryError}
                 </div>
               )}
             </div>
@@ -836,11 +863,11 @@ function DocumentsContent() {
             {summary && (
               <section
                 id="ai-summary"
-                className="mt-6 rounded-2xl border border-blue-500/40 bg-slate-950 p-6"
+                className="mt-6 rounded-2xl border border-cyan-500/40 bg-slate-950 p-6"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
                   <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-blue-400">
+                    <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">
                       Bản Tóm Tắt AI Hoàn Chỉnh
                     </span>
                     <h4 className="mt-1 text-lg font-bold text-white">
@@ -848,21 +875,23 @@ function DocumentsContent() {
                     </h4>
                   </div>
 
-                  <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
-                    ✓ Đã tạo thành công
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+                    <CheckIcon size={14} />
+                    <span>Đã tạo thành công</span>
                   </span>
                 </div>
 
-                <div className="mt-5 whitespace-pre-wrap break-words text-xs sm:text-sm leading-relaxed text-slate-200">
+                <div className="mt-5 whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-200 sm:text-sm">
                   {summary}
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-2.5 border-t border-slate-800 pt-4">
                   <button
                     onClick={copySummary}
-                    className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500"
+                    className="flex items-center gap-1.5 rounded-xl bg-cyan-600 px-4 py-2 text-xs font-bold text-white hover:bg-cyan-500"
                   >
-                    {copySuccess ? "✓ Đã sao chép vào bộ nhớ" : "📋 Sao chép tóm tắt"}
+                    {copySuccess ? <CheckIcon size={15} /> : <CopyIcon size={15} />}
+                    <span>{copySuccess ? "Đã sao chép" : "Sao chép tóm tắt"}</span>
                   </button>
 
                   <button
@@ -888,8 +917,8 @@ export default function DocumentsPage() {
       fallback={
         <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
           <div className="flex flex-col items-center gap-3">
-            <div className="h-9 w-9 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-            <p className="text-sm text-slate-400">Đang khởi tạo...</p>
+            <div className="h-9 w-9 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
+            <p className="text-xs font-medium text-slate-400">Đang khởi tạo...</p>
           </div>
         </main>
       }

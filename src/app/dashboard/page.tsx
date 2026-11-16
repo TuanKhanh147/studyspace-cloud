@@ -3,6 +3,18 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import {
+  LogoIcon,
+  BookOpenIcon,
+  FileTextIcon,
+  SparklesIcon,
+  PlusIcon,
+  EditIcon,
+  TrashIcon,
+  SearchIcon,
+  FolderIcon,
+  LogoutIcon,
+} from "@/components/icons";
 
 type Subject = {
   id: string;
@@ -39,7 +51,6 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // Tải danh sách môn học và tài liệu của người dùng
   async function loadData(uid: string) {
     try {
       const [subjRes, docRes] = await Promise.all([
@@ -80,8 +91,8 @@ export default function Dashboard() {
       setUserEmail(user.email ?? "");
       setUserName(
         user.user_metadata?.full_name ||
-        user.email?.split("@")[0] ||
-        "Sinh viên"
+          user.email?.split("@")[0] ||
+          "Sinh viên"
       );
 
       await loadData(user.id);
@@ -115,7 +126,6 @@ export default function Dashboard() {
           .eq("user_id", userId);
 
         if (updateError) throw updateError;
-
         setEditingId(null);
       } else {
         const { error: insertError } = await supabase.from("subjects").insert({
@@ -194,7 +204,6 @@ export default function Dashboard() {
     setError("");
   }
 
-  // Lọc môn học theo từ khóa tìm kiếm
   const filteredSubjects = useMemo(() => {
     if (!searchQuery.trim()) return subjects;
     const q = searchQuery.toLowerCase().trim();
@@ -205,7 +214,6 @@ export default function Dashboard() {
     );
   }, [subjects, searchQuery]);
 
-  // Đếm số tài liệu theo môn học
   const docsCountBySubject = useMemo(() => {
     const map: Record<string, number> = {};
     for (const doc of documents) {
@@ -218,8 +226,8 @@ export default function Dashboard() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-9 w-9 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-          <p className="text-sm text-slate-400">Đang tải không gian học tập...</p>
+          <div className="h-9 w-9 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent" />
+          <p className="text-xs font-medium text-slate-400">Đang khởi tạo không gian học tập...</p>
         </div>
       </main>
     );
@@ -227,29 +235,29 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md px-6 py-4">
+      {/* Header Công Nghệ Cao */}
+      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 px-6 py-3.5 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 font-bold text-white shadow-md shadow-blue-600/30">
-              🎓
-            </span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-400 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+              <LogoIcon size={22} />
+            </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tight">
-                Study<span className="text-blue-400">Space.</span>
+              <h1 className="text-xl font-black tracking-tight">
+                Study<span className="text-cyan-400">Space.</span>
               </h1>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Cloud Learning Workspace
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Workspace Dashboard
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 rounded-xl bg-slate-800/80 px-3 py-1.5 text-xs">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/20 font-bold text-blue-300">
+            <div className="flex items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900/90 px-3.5 py-1.5 text-xs">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/10 font-bold text-cyan-400">
                 {userName.charAt(0).toUpperCase()}
               </div>
-              <div className="hidden sm:block text-left">
+              <div className="hidden text-left sm:block">
                 <p className="font-semibold text-slate-200">{userName}</p>
                 <p className="text-[11px] text-slate-400">{userEmail}</p>
               </div>
@@ -257,82 +265,88 @@ export default function Dashboard() {
 
             <button
               onClick={logout}
-              className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-300 transition hover:bg-red-500 hover:text-white sm:text-sm"
+              className="flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2 text-xs font-semibold text-red-300 transition hover:bg-red-500 hover:text-white"
             >
-              Đăng xuất
+              <LogoutIcon size={14} />
+              <span>Đăng xuất</span>
             </button>
           </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-        {/* Banner Chào Mừng & Hành Động Nhanh */}
-        <section className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-r from-blue-900/40 via-indigo-900/20 to-slate-900 p-6 sm:p-8">
+        {/* Banner Chào Mừng Công Nghệ */}
+        <section className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-r from-blue-900/40 via-indigo-950/50 to-slate-900/80 p-6 sm:p-8 backdrop-blur-xl">
           <div className="relative z-10 max-w-3xl">
-            <span className="inline-block rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-blue-400">
-              Bảng điều khiển cá nhân
-            </span>
-            <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">
-              Xin chào, {userName}! 👋
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-cyan-300">
+              <SparklesIcon size={14} className="text-cyan-400" />
+              <span>Không gian học tập thông minh</span>
+            </div>
+
+            <h2 className="mt-3 text-2xl font-black text-white sm:text-3xl">
+              Xin chào, {userName}!
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-300">
-              Chào mừng bạn đến với StudySpace. Tổ chức môn học, lưu trữ tài liệu sinh viên và khai thác sức mạnh AI để tóm tắt kiến thức ôn tập hiệu quả.
+
+            <p className="mt-2 text-xs leading-relaxed text-slate-300 sm:text-sm">
+              Quản lý các học phần môn học, lưu trữ tài liệu sinh viên và khai thác sức mạnh AI trích xuất kiến thức trọng tâm cho kỳ thi.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 onClick={() => router.push("/dashboard/documents")}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-500"
+                className="flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-cyan-500/25 transition hover:brightness-110 active:scale-[0.99] sm:text-sm"
               >
-                <span>📁</span>
+                <FolderIcon size={18} />
                 <span>Quản lý & Tải tài liệu sinh viên</span>
               </button>
             </div>
           </div>
         </section>
 
-        {/* Thống kê Tổng quan */}
-        <section className="mt-8 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        {/* 3 Thẻ Thống Kê Công Nghệ */}
+        <section className="mt-7 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 transition hover:border-blue-500/40">
             <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-semibold uppercase">Môn học đã tạo</span>
-              <span className="text-xl">📚</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Môn học đã tạo</span>
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                <BookOpenIcon size={18} />
+              </div>
             </div>
-            <p className="mt-3 text-3xl font-extrabold text-blue-400">
-              {subjects.length}
-            </p>
-            <p className="mt-1 text-xs text-slate-400">Các môn học trong học kỳ này</p>
+            <p className="mt-3 text-3xl font-black text-blue-400">{subjects.length}</p>
+            <p className="mt-1 text-[11px] text-slate-400">Các môn học trong học kỳ hiện tại</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 transition hover:border-emerald-500/40">
             <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-semibold uppercase">Tài liệu đã lưu</span>
-              <span className="text-xl">📄</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Tài liệu đã lưu</span>
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                <FileTextIcon size={18} />
+              </div>
             </div>
-            <p className="mt-3 text-3xl font-extrabold text-emerald-400">
-              {documents.length}
-            </p>
-            <p className="mt-1 text-xs text-slate-400">PDF, Slide, Word đã tải lên</p>
+            <p className="mt-3 text-3xl font-black text-emerald-400">{documents.length}</p>
+            <p className="mt-1 text-[11px] text-slate-400">PDF, Slide, Word, Excel đã tải lên</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 transition hover:border-purple-500/40">
             <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-semibold uppercase">AI Hỗ trợ</span>
-              <span className="text-xl">✨</span>
+              <span className="text-xs font-bold uppercase tracking-wider">Trợ lý AI Ôn Thi</span>
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400">
+                <SparklesIcon size={18} />
+              </div>
             </div>
-            <p className="mt-3 text-3xl font-extrabold text-purple-400">
-              Sẵn sàng
-            </p>
-            <p className="mt-1 text-xs text-slate-400">Tóm tắt & trích xuất ý chính</p>
+            <p className="mt-3 text-3xl font-black text-purple-400">Active</p>
+            <p className="mt-1 text-[11px] text-slate-400">Trích xuất ý chính & luận điểm ôn thi</p>
           </div>
         </section>
 
         {/* Form Thêm / Chỉnh Sửa Môn Học */}
-        <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900 p-6">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">{editingId ? "✏️" : "➕"}</span>
-            <h3 className="text-lg font-bold sm:text-xl">
-              {editingId ? "Chỉnh sửa thông tin môn học" : "Thêm môn học mới"}
+        <section className="mt-8 rounded-2xl border border-slate-800/80 bg-slate-900/90 p-6 backdrop-blur-xl">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+              {editingId ? <EditIcon size={18} /> : <PlusIcon size={18} />}
+            </div>
+            <h3 className="text-base font-bold text-white sm:text-lg">
+              {editingId ? "Cập nhật thông tin môn học" : "Thêm môn học mới"}
             </h3>
           </div>
 
@@ -345,8 +359,8 @@ export default function Dashboard() {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ví dụ: Cơ sở dữ liệu, Lập trình Web..."
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition focus:border-blue-500"
+                placeholder="Ví dụ: Lập trình Web, Cơ sở dữ liệu..."
+                className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition focus:border-cyan-500"
               />
             </div>
 
@@ -362,7 +376,7 @@ export default function Dashboard() {
                   className="h-11 w-20 cursor-pointer rounded-xl border border-slate-700 bg-slate-800 p-1"
                 />
                 <span className="text-xs text-slate-400">
-                  Chọn màu để phân loại môn học trên dashboard
+                  Màu đại diện của môn học trên bảng điều khiển
                 </span>
               </div>
             </div>
@@ -374,15 +388,15 @@ export default function Dashboard() {
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Nhập tên giảng viên, phòng học, lịch thi hoặc lưu ý..."
+                placeholder="Nhập tên giảng viên, phòng học, mã học phần hoặc ghi chú..."
                 rows={2}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition focus:border-blue-500"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition focus:border-cyan-500"
               />
             </div>
 
             {error && (
               <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300 md:col-span-2">
-                ⚠️ {error}
+                {error}
               </div>
             )}
 
@@ -390,20 +404,23 @@ export default function Dashboard() {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-blue-500 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/30 transition hover:brightness-110 disabled:opacity-50 sm:text-sm"
               >
-                {saving
-                  ? "Đang lưu..."
-                  : editingId
-                    ? "Cập nhật môn học"
-                    : "Thêm môn học"}
+                {editingId ? <EditIcon size={16} /> : <PlusIcon size={16} />}
+                <span>
+                  {saving
+                    ? "Đang lưu..."
+                    : editingId
+                      ? "Cập nhật môn học"
+                      : "Thêm môn học"}
+                </span>
               </button>
 
               {editingId && (
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className="rounded-xl bg-slate-800 px-5 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-700"
+                  className="rounded-xl bg-slate-800 px-5 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-700"
                 >
                   Hủy bỏ
                 </button>
@@ -412,24 +429,30 @@ export default function Dashboard() {
           </form>
         </section>
 
-        {/* Danh Sách Môn Học Của Sinh Viên */}
+        {/* Danh Sách Môn Học */}
         <section className="mt-10">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-xl font-bold sm:text-2xl">Môn học của tôi</h3>
+              <h3 className="text-xl font-bold text-white sm:text-2xl">
+                Môn học của tôi
+              </h3>
               <p className="text-xs text-slate-400">
                 Tổng cộng {subjects.length} môn học trong danh sách
               </p>
             </div>
 
             {subjects.length > 0 && (
-              <div className="w-full sm:w-72">
+              <div className="relative w-full sm:w-72">
+                <SearchIcon
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="🔍 Tìm kiếm môn học..."
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 text-xs text-white placeholder-slate-500 outline-none focus:border-blue-500"
+                  placeholder="Tìm kiếm môn học..."
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900/90 py-2.5 pl-10 pr-4 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-500"
                 />
               </div>
             )}
@@ -437,16 +460,18 @@ export default function Dashboard() {
 
           {subjects.length === 0 ? (
             <div className="mt-6 rounded-3xl border border-dashed border-slate-800 bg-slate-900/50 p-12 text-center">
-              <div className="text-5xl">📚</div>
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10 text-cyan-400">
+                <BookOpenIcon size={32} />
+              </div>
               <p className="mt-4 text-base font-bold text-slate-200">
                 Bạn chưa thêm môn học nào
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                Hãy dùng form ở trên để thêm các môn học bạn đang học trong kỳ này nhé!
+                Hãy sử dụng biểu mẫu ở trên để thêm các môn học bạn đang theo học nhé!
               </p>
             </div>
           ) : filteredSubjects.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400 text-sm">
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-xs text-slate-400 sm:text-sm">
               Không tìm thấy môn học nào khớp với từ khóa &quot;{searchQuery}&quot;.
             </div>
           ) : (
@@ -456,7 +481,7 @@ export default function Dashboard() {
                 return (
                   <article
                     key={subject.id}
-                    className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-5 transition hover:border-slate-700 hover:shadow-xl"
+                    className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 p-5 transition hover:border-slate-700 hover:shadow-xl"
                   >
                     <div>
                       {/* Vạch màu môn học */}
@@ -466,11 +491,12 @@ export default function Dashboard() {
                       />
 
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-lg font-bold text-white group-hover:text-blue-300 transition">
+                        <h4 className="text-base font-bold text-white transition group-hover:text-cyan-400">
                           {subject.name}
                         </h4>
-                        <span className="inline-flex items-center rounded-full bg-slate-800 px-2.5 py-0.5 text-[11px] font-semibold text-slate-300">
-                          📄 {count} tài liệu
+                        <span className="inline-flex items-center gap-1 rounded-md bg-slate-800/90 px-2 py-0.5 text-[11px] font-semibold text-slate-300">
+                          <FileTextIcon size={12} className="text-cyan-400" />
+                          <span>{count} tài liệu</span>
                         </span>
                       </div>
 
@@ -479,31 +505,34 @@ export default function Dashboard() {
                       </p>
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-slate-800/80">
-                      {/* Nút xem tài liệu của môn */}
+                    <div className="mt-6 border-t border-slate-800/80 pt-4">
+                      {/* Nút xem tài liệu */}
                       <button
                         onClick={() =>
                           router.push(
                             `/dashboard/documents?subjectId=${subject.id}`
                           )
                         }
-                        className="w-full rounded-xl bg-blue-600/10 py-2.5 text-xs font-bold text-blue-400 transition hover:bg-blue-600 hover:text-white"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500/10 py-2.5 text-xs font-bold text-cyan-400 transition hover:bg-cyan-500 hover:text-slate-950"
                       >
-                        📂 Xem tài liệu ({count})
+                        <FolderIcon size={15} />
+                        <span>Xem tài liệu môn này ({count})</span>
                       </button>
 
                       <div className="mt-2 flex gap-2">
                         <button
                           onClick={() => editSubject(subject)}
-                          className="flex-1 rounded-lg bg-slate-800 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-slate-800 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700"
                         >
-                          Sửa
+                          <EditIcon size={13} />
+                          <span>Sửa</span>
                         </button>
                         <button
                           onClick={() => deleteSubject(subject)}
-                          className="flex-1 rounded-lg bg-red-500/10 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500 hover:text-white"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-red-500/10 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500 hover:text-white"
                         >
-                          Xóa
+                          <TrashIcon size={13} />
+                          <span>Xóa</span>
                         </button>
                       </div>
                     </div>
