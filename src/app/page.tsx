@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { AuthService } from "@/lib/auth-service";
 import {
   LogoIcon,
   SparklesIcon,
@@ -14,26 +14,6 @@ import {
 } from "@/components/icons";
 
 const REMEMBER_EMAIL_KEY = "studyspace_remembered_email";
-
-function mapAuthError(message: string): string {
-  const lower = message.toLowerCase();
-  if (lower.includes("invalid login credentials")) {
-    return "Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.";
-  }
-  if (lower.includes("user already registered")) {
-    return "Email này đã được đăng ký tài khoản. Bạn vui lòng chuyển sang Đăng nhập.";
-  }
-  if (lower.includes("email not confirmed")) {
-    return "Tài khoản chưa được kích hoạt qua email. Vui lòng kiểm tra hộp thư để xác thực.";
-  }
-  if (lower.includes("password should be at least")) {
-    return "Mật khẩu cần có ít nhất 6 ký tự để đảm bảo an toàn.";
-  }
-  if (lower.includes("rate limit") || lower.includes("too many requests")) {
-    return "Bạn đã thao tác quá nhiều lần. Vui lòng đợi vài phút rồi thử lại.";
-  }
-  return message;
-}
 
 export default function Home() {
   const router = useRouter();
@@ -49,13 +29,11 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const supabase = createClient();
-
   useEffect(() => {
     async function checkExistingSession() {
       try {
-        const { data } = await supabase.auth.getSession();
-        if (data?.session?.user) {
+        const session = await AuthService.getSession();
+        if (session) {
           router.replace("/dashboard");
           return;
         }
@@ -73,7 +51,7 @@ export default function Home() {
     }
 
     checkExistingSession();
-  }, [router, supabase]);
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -83,16 +61,11 @@ export default function Home() {
 
     try {
       if (mode === "register") {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: {
-            data: { full_name: fullName.trim() },
-            emailRedirectTo: `${window.location.origin}/dashboard`,
-          },
-        });
+        if (!fullName.trim()) {
+          throw new Error("Vui lòng nhập họ và tên của bạn.");
+        }
 
-        if (signUpError) throw signUpError;
+        await AuthService.signUp(email, password, fullName);
 
         if (rememberMe) {
           localStorage.setItem(REMEMBER_EMAIL_KEY, email.trim());
@@ -100,20 +73,9 @@ export default function Home() {
           localStorage.removeItem(REMEMBER_EMAIL_KEY);
         }
 
-        if (data.session) {
-          router.push("/dashboard");
-        } else {
-          setMessage(
-            "Đăng ký tài khoản thành công! Vui lòng kiểm tra hộp thư email để kích hoạt tài khoản."
-          );
-        }
+        router.push("/dashboard");
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-
-        if (signInError) throw signInError;
+        await AuthService.signIn(email, password);
 
         if (rememberMe) {
           localStorage.setItem(REMEMBER_EMAIL_KEY, email.trim());
@@ -124,8 +86,7 @@ export default function Home() {
         router.push("/dashboard");
       }
     } catch (err) {
-      const rawMsg = err instanceof Error ? err.message : "Đã xảy ra lỗi. Vui lòng thử lại.";
-      setError(mapAuthError(rawMsg));
+      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
@@ -145,7 +106,7 @@ export default function Home() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-12">
       {/* Background Tech Glow */}
-      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-blue-600/20 blur-[120px]" />
+      <div className="pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full bg-blue-600/20 blur-[120px]" />
       <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-cyan-600/15 blur-[120px]" />
 
       <div className="relative z-10 grid w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-900/90 shadow-2xl backdrop-blur-xl md:grid-cols-2">
@@ -210,7 +171,7 @@ export default function Home() {
             <span>© 2026 StudySpace Cloud</span>
             <span className="flex items-center gap-1.5 font-medium text-emerald-300">
               <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-              Cloud Engine Trực Tuyến
+              Cloud Engine Sẵn Sàng
             </span>
           </div>
         </section>
@@ -230,7 +191,7 @@ export default function Home() {
 
           <div className="mb-6">
             <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-400">
-              {mode === "login" ? "Xác thực bảo mật" : "Tài khoản học tập mới"}
+              {mode === "login" ? "Xác thực tài khoản" : "Tài khoản học tập mới"}
             </p>
             <h2 className="mt-1.5 text-2xl font-black text-white sm:text-3xl">
               {mode === "login" ? "Đăng nhập tài khoản" : "Tạo tài khoản StudySpace"}
@@ -242,7 +203,7 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Toggle Chuyển Mode Hiện Đại */}
+          {/* Toggle Chuyển Mode */}
           <div className="mb-5 grid grid-cols-2 rounded-2xl border border-slate-800 bg-slate-950/60 p-1">
             <button
               type="button"
@@ -287,7 +248,7 @@ export default function Home() {
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Ví dụ: Nguyễn Văn An"
+                  placeholder="Ví dụ: Phạm Tuấn Khanh"
                   className="w-full rounded-xl border border-slate-700/80 bg-slate-800/70 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                 />
               </div>
@@ -302,7 +263,7 @@ export default function Home() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="sinhvien@example.com"
+                placeholder="2531540544@vaa.edu.vn"
                 className="w-full rounded-xl border border-slate-700/80 bg-slate-800/70 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
               />
             </div>
@@ -332,7 +293,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Checkbox Ghi nhớ thông tin đăng nhập */}
             <div className="flex items-center justify-between pt-0.5">
               <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300 hover:text-white transition">
                 <input
@@ -369,7 +329,7 @@ export default function Home() {
               )}
               <span>
                 {loading
-                  ? "Đang xác thực bảo mật..."
+                  ? "Đang xử lý..."
                   : mode === "login"
                     ? "Đăng nhập vào StudySpace"
                     : "Khởi tạo tài khoản"}
@@ -378,7 +338,7 @@ export default function Home() {
           </form>
 
           <p className="mt-6 text-center text-[11px] text-slate-500">
-            Bảo mật 256-bit mã hóa đầu cuối cho tài liệu và dữ liệu sinh viên.
+            Hệ thống đám mây StudySpace lưu trữ học tập an toàn.
           </p>
         </section>
       </div>

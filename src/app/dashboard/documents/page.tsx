@@ -2,7 +2,12 @@
 
 import { useEffect, useState, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import {
+  AuthService,
+  DataService,
+  SubjectItem,
+  DocumentRecord,
+} from "@/lib/auth-service";
 import {
   FilePdfIcon,
   FileTextIcon,
@@ -17,23 +22,6 @@ import {
   FolderIcon,
 } from "@/components/icons";
 
-type Subject = {
-  id: string;
-  name: string;
-};
-
-type DocumentItem = {
-  id: string;
-  user_id: string;
-  subject_id: string;
-  title: string;
-  file_name: string;
-  file_path: string;
-  file_type: string;
-  created_at: string;
-};
-
-const BUCKET = "studyspace-documents";
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 const ALLOWED_EXTENSIONS = [
@@ -47,34 +35,14 @@ const ALLOWED_EXTENSIONS = [
   "xlsx",
 ];
 
-function sanitizeFileName(fileName: string): string {
-  const dotIndex = fileName.lastIndexOf(".");
-  const base = dotIndex !== -1 ? fileName.substring(0, dotIndex) : fileName;
-  const ext = dotIndex !== -1 ? fileName.substring(dotIndex + 1).toLowerCase() : "file";
-
-  const cleanBase = base
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "D")
-    .replace(/[^a-zA-Z0-9_-]/g, "_")
-    .replace(/_+/g, "_")
-    .substring(0, 50);
-
-  const randomStr = Math.random().toString(36).substring(2, 8);
-  return `${cleanBase || "doc"}_${randomStr}.${ext}`;
-}
-
 function DocumentsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialSubjectFilter = searchParams.get("subjectId") || "";
 
-  const supabase = createClient();
-
   const [userId, setUserId] = useState("");
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
 
   const [searchKeyword, setSearchKeyword] = useState("");
   const [filterSubject, setFilterSubject] = useState(initialSubjectFilter);
@@ -104,60 +72,36 @@ function DocumentsContent() {
 
   useEffect(() => {
     async function initialize() {
-      const { data, error: userError } = await supabase.auth.getUser();
-
-      if (userError || !data?.user) {
+      const session = await AuthService.getSession();
+      if (!session) {
         router.replace("/");
         return;
       }
 
-      setUserId(data.user.id);
+      setUserId(session.id);
 
-      const [subjectResult, documentResult] = await Promise.all([
-        supabase
-          .from("subjects")
-          .select("id, name")
-          .order("name"),
-        supabase
-          .from("documents")
-          .select("*")
-          .order("created_at", { ascending: false }),
+      const [subjs, docs] = await Promise.all([
+        DataService.getSubjects(session.id),
+        DataService.getDocuments(session.id),
       ]);
 
-      if (subjectResult.error) {
-        setError(subjectResult.error.message);
-      } else {
-        const subjs = subjectResult.data ?? [];
-        setSubjects(subjs);
-        if (!selectedSubject && subjs.length > 0 && initialSubjectFilter) {
-          setSelectedSubject(initialSubjectFilter);
-        }
-      }
+      setSubjects(subjs);
+      setDocuments(docs);
 
-      if (documentResult.error) {
-        setError(documentResult.error.message);
-      } else {
-        setDocuments(documentResult.data ?? []);
+      if (!selectedSubject && subjs.length > 0 && initialSubjectFilter) {
+        setSelectedSubject(initialSubjectFilter);
       }
 
       setLoading(false);
     }
 
     initialize();
-  }, [router, supabase, initialSubjectFilter, selectedSubject]);
+  }, [router, initialSubjectFilter, selectedSubject]);
 
   async function loadDocuments() {
-    const { data, error: docError } = await supabase
-      .from("documents")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (docError) {
-      setError(docError.message);
-      return;
-    }
-
-    setDocuments(data ?? []);
+    if (!userId) return;
+    const docs = await DataService.getDocuments(userId);
+    setDocuments(docs);
   }
 
   function handleFileChange(file: File | null) {
@@ -187,13 +131,22 @@ function DocumentsContent() {
     }
   }
 
+  async function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function uploadDocument(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setSuccess("");
 
     if (!userId) {
-      setError("Không xác định được phiên đăng nhập.");
+      setError("Không xác định được phiên làm việc.");
       return;
     }
 
@@ -214,37 +167,22 @@ function DocumentsContent() {
 
     setUploading(true);
 
-    const extension =
-      selectedFile.name.split(".").pop()?.toLowerCase() || "file";
-
-    const safeFileName = sanitizeFileName(selectedFile.name);
-    const filePath = `${userId}/${safeFileName}`;
-
     try {
-      const { error: uploadError } = await supabase.storage
-        .from(BUCKET)
-        .upload(filePath, selectedFile, {
-          upsert: true,
-          contentType: selectedFile.type || "application/octet-stream",
-        });
-
-      if (uploadError) {
-        throw new Error(`Lỗi tải lên: ${uploadError.message}`);
+      let base64Data: string | undefined = undefined;
+      // Nếu file < 8MB, lưu Base64 để hỗ trợ xem và tải về offline/cloud fallback
+      if (selectedFile.size < 8 * 1024 * 1024) {
+        try {
+          base64Data = await fileToBase64(selectedFile);
+        } catch {}
       }
 
-      const { error: insertError } = await supabase.from("documents").insert({
-        user_id: userId,
-        subject_id: selectedSubject,
-        title: title.trim(),
-        file_name: selectedFile.name,
-        file_path: filePath,
-        file_type: extension,
-      });
-
-      if (insertError) {
-        await supabase.storage.from(BUCKET).remove([filePath]);
-        throw new Error(`Lỗi cơ sở dữ liệu: ${insertError.message}`);
-      }
+      await DataService.saveDocument(
+        userId,
+        selectedSubject,
+        title.trim(),
+        selectedFile,
+        base64Data
+      );
 
       setTitle("");
       setSelectedFile(null);
@@ -265,7 +203,7 @@ function DocumentsContent() {
     }
   }
 
-  async function extractPdf(doc: DocumentItem) {
+  async function extractPdf(doc: DocumentRecord) {
     if (doc.file_type.toLowerCase() !== "pdf") {
       setError("Chức năng đọc tự động hiện hỗ trợ định dạng PDF.");
       return;
@@ -282,17 +220,20 @@ function DocumentsContent() {
     setExtractingId(doc.id);
 
     try {
-      const { data: fileBlob, error: downloadError } =
-        await supabase.storage.from(BUCKET).download(doc.file_path);
+      let pdfBlob: Blob | null = null;
 
-      if (downloadError || !fileBlob) {
-        throw new Error(
-          downloadError?.message || "Không thể tải file PDF từ bộ nhớ lưu trữ."
-        );
+      // 1. Nếu có base64 cục bộ
+      if (doc.file_data) {
+        const res = await fetch(doc.file_data);
+        pdfBlob = await res.blob();
+      }
+
+      if (!pdfBlob) {
+        throw new Error("Không thể nạp nội dung tài liệu PDF để đọc.");
       }
 
       const formData = new FormData();
-      const pdfFile = new File([fileBlob], doc.file_name, {
+      const pdfFile = new File([pdfBlob], doc.file_name, {
         type: "application/pdf",
       });
       formData.append("file", pdfFile);
@@ -372,51 +313,38 @@ function DocumentsContent() {
     }
   }
 
-  async function viewDocument(doc: DocumentItem) {
+  function viewDocument(doc: DocumentRecord) {
     setError("");
     try {
-      const { data, error: urlError } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrl(doc.file_path, 3600);
-
-      if (urlError || !data?.signedUrl) {
-        throw new Error(urlError?.message || "Không thể tạo liên kết xem file.");
+      if (doc.file_data) {
+        const win = window.open();
+        if (win) {
+          win.document.write(
+            `<iframe src="${doc.file_data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
+          );
+          return;
+        }
       }
-
-      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      throw new Error("Không có dữ liệu xem trước cho tài liệu này.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lỗi khi mở tài liệu.");
     }
   }
 
-  async function downloadDocument(doc: DocumentItem) {
+  function downloadDocument(doc: DocumentRecord) {
     setError("");
     setDownloadingId(doc.id);
     try {
-      const { data: blob, error: downloadError } = await supabase.storage
-        .from(BUCKET)
-        .download(doc.file_path);
-
-      if (downloadError || !blob) {
-        const { data: signedData } = await supabase.storage
-          .from(BUCKET)
-          .createSignedUrl(doc.file_path, 60);
-
-        if (signedData?.signedUrl) {
-          window.open(signedData.signedUrl, "_blank");
-          return;
-        }
-        throw new Error(downloadError?.message || "Không thể tải file về máy.");
+      if (doc.file_data) {
+        const a = document.createElement("a");
+        a.href = doc.file_data;
+        a.download = doc.file_name || "document";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
       }
-
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = doc.file_name || "document";
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      throw new Error("Không tìm thấy dữ liệu file để tải xuống.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lỗi khi tải file.");
     } finally {
@@ -424,7 +352,7 @@ function DocumentsContent() {
     }
   }
 
-  async function deleteDocument(doc: DocumentItem) {
+  async function deleteDocument(doc: DocumentRecord) {
     const confirmed = window.confirm(
       `Bạn có chắc chắn muốn xóa tài liệu "${doc.title}" không?`
     );
@@ -435,15 +363,7 @@ function DocumentsContent() {
     setDeletingId(doc.id);
 
     try {
-      await supabase.storage.from(BUCKET).remove([doc.file_path]);
-
-      const { error: dbError } = await supabase
-        .from("documents")
-        .delete()
-        .eq("id", doc.id)
-        .eq("user_id", userId);
-
-      if (dbError) throw dbError;
+      await DataService.deleteDocument(userId, doc);
 
       if (extractedTitle === doc.title) {
         setExtractedText("");
@@ -734,7 +654,7 @@ function DocumentsContent() {
 
                     {/* Các hành động */}
                     <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-800/80 pt-3">
-                      {isPdf && (
+                      {isPdf && doc.file_data && (
                         <button
                           onClick={() => extractPdf(doc)}
                           disabled={isExtracting}

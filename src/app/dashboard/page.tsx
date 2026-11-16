@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { AuthService, DataService, SubjectItem, DocumentRecord } from "@/lib/auth-service";
 import {
   LogoIcon,
   BookOpenIcon,
@@ -16,27 +16,11 @@ import {
   LogoutIcon,
 } from "@/components/icons";
 
-type Subject = {
-  id: string;
-  name: string;
-  description: string | null;
-  color: string;
-  created_at: string;
-};
-
-type DocumentMeta = {
-  id: string;
-  subject_id: string;
-  title: string;
-  file_name: string;
-};
-
 export default function Dashboard() {
   const router = useRouter();
-  const supabase = createClient();
 
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [documents, setDocuments] = useState<DocumentMeta[]>([]);
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
   const [userId, setUserId] = useState("");
@@ -53,25 +37,12 @@ export default function Dashboard() {
 
   async function loadData(uid: string) {
     try {
-      const [subjRes, docRes] = await Promise.all([
-        supabase
-          .from("subjects")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("documents")
-          .select("id, subject_id, title, file_name"),
+      const [subjData, docData] = await Promise.all([
+        DataService.getSubjects(uid),
+        DataService.getDocuments(uid),
       ]);
-
-      if (subjRes.error) {
-        setError(subjRes.error.message);
-      } else {
-        setSubjects(subjRes.data ?? []);
-      }
-
-      if (!docRes.error && docRes.data) {
-        setDocuments(docRes.data);
-      }
+      setSubjects(subjData);
+      setDocuments(docData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lỗi khi tải dữ liệu.");
     }
@@ -79,28 +50,22 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function initialize() {
-      const { data, error: userError } = await supabase.auth.getUser();
-
-      if (userError || !data?.user) {
+      const session = await AuthService.getSession();
+      if (!session) {
         router.replace("/");
         return;
       }
 
-      const user = data.user;
-      setUserId(user.id);
-      setUserEmail(user.email ?? "");
-      setUserName(
-        user.user_metadata?.full_name ||
-          user.email?.split("@")[0] ||
-          "Sinh viên"
-      );
+      setUserId(session.id);
+      setUserEmail(session.email);
+      setUserName(session.full_name || "Sinh viên");
 
-      await loadData(user.id);
+      await loadData(session.id);
       setLoading(false);
     }
 
     initialize();
-  }, [router, supabase]);
+  }, [router]);
 
   async function saveSubject(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -114,30 +79,15 @@ export default function Dashboard() {
     setError("");
 
     try {
-      if (editingId) {
-        const { error: updateError } = await supabase
-          .from("subjects")
-          .update({
-            name: name.trim(),
-            description: description.trim() || null,
-            color,
-          })
-          .eq("id", editingId)
-          .eq("user_id", userId);
+      await DataService.saveSubject(
+        userId,
+        editingId,
+        name.trim(),
+        description.trim(),
+        color
+      );
 
-        if (updateError) throw updateError;
-        setEditingId(null);
-      } else {
-        const { error: insertError } = await supabase.from("subjects").insert({
-          user_id: userId,
-          name: name.trim(),
-          description: description.trim() || null,
-          color,
-        });
-
-        if (insertError) throw insertError;
-      }
-
+      setEditingId(null);
       setName("");
       setDescription("");
       setColor("#2563eb");
@@ -149,7 +99,7 @@ export default function Dashboard() {
     }
   }
 
-  function editSubject(subject: Subject) {
+  function editSubject(subject: SubjectItem) {
     setEditingId(subject.id);
     setName(subject.name);
     setDescription(subject.description ?? "");
@@ -158,7 +108,7 @@ export default function Dashboard() {
     window.scrollTo({ top: 300, behavior: "smooth" });
   }
 
-  async function deleteSubject(subject: Subject) {
+  async function deleteSubject(subject: SubjectItem) {
     const docCountForSubject = documents.filter(
       (d) => d.subject_id === subject.id
     ).length;
@@ -172,18 +122,10 @@ export default function Dashboard() {
     if (!confirmed) return;
 
     try {
-      const { error: delError } = await supabase
-        .from("subjects")
-        .delete()
-        .eq("id", subject.id)
-        .eq("user_id", userId);
-
-      if (delError) throw delError;
-
+      await DataService.deleteSubject(userId, subject.id);
       if (editingId === subject.id) {
         cancelEdit();
       }
-
       await loadData(userId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể xóa môn học.");
@@ -191,7 +133,7 @@ export default function Dashboard() {
   }
 
   async function logout() {
-    await supabase.auth.signOut();
+    await AuthService.signOut();
     router.replace("/");
     router.refresh();
   }
@@ -484,7 +426,6 @@ export default function Dashboard() {
                     className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 p-5 transition hover:border-slate-700 hover:shadow-xl"
                   >
                     <div>
-                      {/* Vạch màu môn học */}
                       <div
                         className="mb-4 h-1.5 w-14 rounded-full"
                         style={{ backgroundColor: subject.color }}
@@ -506,7 +447,6 @@ export default function Dashboard() {
                     </div>
 
                     <div className="mt-6 border-t border-slate-800/80 pt-4">
-                      {/* Nút xem tài liệu */}
                       <button
                         onClick={() =>
                           router.push(
