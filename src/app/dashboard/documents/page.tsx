@@ -168,12 +168,14 @@ function DocumentsContent() {
     setUploading(true);
 
     try {
+      // Chuyển toàn bộ file sang Base64 và lưu vào IndexedDB (không giới hạn)
       let base64Data: string | undefined = undefined;
-      // Nếu file < 8MB, lưu Base64 để hỗ trợ xem và tải về offline/cloud fallback
-      if (selectedFile.size < 8 * 1024 * 1024) {
-        try {
-          base64Data = await fileToBase64(selectedFile);
-        } catch {}
+      try {
+        base64Data = await fileToBase64(selectedFile);
+      } catch {
+        setError("Không thể đọc file. Vui lòng thử lại.");
+        setUploading(false);
+        return;
       }
 
       await DataService.saveDocument(
@@ -222,9 +224,12 @@ function DocumentsContent() {
     try {
       let pdfBlob: Blob | null = null;
 
-      // 1. Nếu có base64 cục bộ
-      if (doc.file_data) {
-        const res = await fetch(doc.file_data);
+      // Load file_data đầy đủ từ IndexedDB
+      const fullDoc = await DataService.getDocumentWithData(doc.id);
+      const fileData = fullDoc?.file_data || doc.file_data;
+
+      if (fileData) {
+        const res = await fetch(fileData);
         pdfBlob = await res.blob();
       }
 
@@ -313,14 +318,18 @@ function DocumentsContent() {
     }
   }
 
-  function viewDocument(doc: DocumentRecord) {
+  async function viewDocument(doc: DocumentRecord) {
     setError("");
     try {
-      if (doc.file_data) {
+      // Load file_data từ IndexedDB nếu chưa có trong bộ nhớ
+      const fullDoc = await DataService.getDocumentWithData(doc.id);
+      const fileData = fullDoc?.file_data || doc.file_data;
+
+      if (fileData) {
         const win = window.open();
         if (win) {
           win.document.write(
-            `<iframe src="${doc.file_data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
+            `<iframe src="${fileData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
           );
           return;
         }
@@ -331,13 +340,17 @@ function DocumentsContent() {
     }
   }
 
-  function downloadDocument(doc: DocumentRecord) {
+  async function downloadDocument(doc: DocumentRecord) {
     setError("");
     setDownloadingId(doc.id);
     try {
-      if (doc.file_data) {
+      // Load file_data từ IndexedDB
+      const fullDoc = await DataService.getDocumentWithData(doc.id);
+      const fileData = fullDoc?.file_data || doc.file_data;
+
+      if (fileData) {
         const a = document.createElement("a");
-        a.href = doc.file_data;
+        a.href = fileData;
         a.download = doc.file_name || "document";
         document.body.appendChild(a);
         a.click();
@@ -654,7 +667,7 @@ function DocumentsContent() {
 
                     {/* Các hành động */}
                     <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-800/80 pt-3">
-                      {isPdf && doc.file_data && (
+                      {isPdf && (
                         <button
                           onClick={() => extractPdf(doc)}
                           disabled={isExtracting}
