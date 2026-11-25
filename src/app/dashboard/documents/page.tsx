@@ -271,16 +271,16 @@ function DocumentsContent() {
         } catch {
           throw new Error("Không thể giải mã nội dung văn bản này.");
         }
-      } else if (ext === "pdf") {
-        // Nếu là PDF, gửi qua API trích xuất
+      } else {
+        // Gửi qua API trích xuất (Hỗ trợ PDF, Word .docx, PowerPoint .pptx, etc.)
         const res = await fetch(fileData);
-        const pdfBlob = await res.blob();
+        const fileBlob = await res.blob();
 
         const formData = new FormData();
-        const pdfFile = new File([pdfBlob], doc.file_name, {
-          type: "application/pdf",
+        const fileObj = new File([fileBlob], doc.file_name, {
+          type: fileBlob.type || "application/octet-stream",
         });
-        formData.append("file", pdfFile);
+        formData.append("file", fileObj);
 
         const response = await fetch("/api/extract-pdf", {
           method: "POST",
@@ -291,16 +291,12 @@ function DocumentsContent() {
 
         if (!response.ok) {
           throw new Error(
-            result.details || result.error || "Không thể trích xuất nội dung PDF."
+            result.details || result.error || "Không thể trích xuất nội dung từ tài liệu này."
           );
         }
 
         textContent = result.text;
         count = result.pageCount ?? 1;
-      } else {
-        throw new Error(
-          `Định dạng .${ext} hiện chưa hỗ trợ đọc trực tiếp. Vui lòng sử dụng file PDF hoặc TXT.`
-        );
       }
 
       if (!textContent.trim()) {
@@ -1055,17 +1051,15 @@ function DocumentsContent() {
 
                     {/* Các hành động */}
                     <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-800/80 pt-3">
-                      {/* Nút Kích Hoạt AI */}
-                      {(isPdf || isText) && (
-                        <button
-                          onClick={() => extractDocument(doc)}
-                          disabled={isExtracting}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-500/40 px-3 py-2 text-xs font-bold text-purple-200 transition hover:brightness-125 disabled:opacity-50"
-                        >
-                          <SparklesIcon size={14} className="text-cyan-400" />
-                          <span>{isExtracting ? "Đang đọc..." : "AI Ôn tập"}</span>
-                        </button>
-                      )}
+                      {/* Nút Kích Hoạt AI hiển thị cho tất cả mọi tài liệu (PDF, Word, PPT, TXT...) */}
+                      <button
+                        onClick={() => extractDocument(doc)}
+                        disabled={isExtracting}
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600/30 to-cyan-600/30 border border-purple-500/40 px-3 py-2 text-xs font-bold text-purple-200 transition hover:brightness-125 disabled:opacity-50"
+                      >
+                        <SparklesIcon size={14} className="text-cyan-400" />
+                        <span>{isExtracting ? "Đang đọc..." : "AI Ôn tập"}</span>
+                      </button>
 
                       <button
                         onClick={() => viewDocument(doc)}
