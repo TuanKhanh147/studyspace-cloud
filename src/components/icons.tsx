@@ -303,6 +303,24 @@ export function BookOpenIcon({ size = 20, className = "" }: IconProps) {
   );
 }
 
+export function KeyIcon({ size = 18, className = "" }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="m21 2-2 2m-1.5 1.5L16 7l2 2 1.5-1.5m-3-1.5L14 8l1.5 1.5M7 17a5 5 0 1 1 7.07-7.07l7.07 7.07-1.41 1.41-2.12-2.12-1.42 1.42-2.12-2.12-1.41 1.41L11.7 19.3A5 5 0 0 1 7 17z" />
+    </svg>
+  );
+}
+
 export function LogoutIcon({ size = 18, className = "" }: IconProps) {
   return (
     <svg

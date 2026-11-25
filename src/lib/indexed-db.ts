@@ -219,3 +219,4 @@ export async function migrateFromLocalStorage(userId: string): Promise<void> {
     // ignore migrate errors
   }
 }
+
