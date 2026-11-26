@@ -477,6 +477,341 @@ function DocumentsContent() {
     }
   }
 
+  // Chuyển đổi Markdown sang HTML cho bản in PDF
+  function formatMarkdownToHtml(markdown: string): string {
+    let html = markdown
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    // Blockquote
+    html = html.replace(/^&gt;\s?(.*)$/gm, "<blockquote>$1</blockquote>");
+
+    // Tiêu đề
+    html = html
+      .replace(/^### (.*$)/gm, "<h3>$1</h3>")
+      .replace(/^## (.*$)/gm, "<h2>$1</h2>")
+      .replace(/^# (.*$)/gm, "<h1>$1</h1>");
+
+    // Định dạng chữ
+    html = html
+      .replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>")
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+    // Đường kẻ ngang
+    html = html.replace(/^---$/gm, "<hr />");
+
+    // Code inline
+    html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+    // Danh sách
+    html = html.replace(/^[\*\-]\s+(.*)$/gm, "<li>$1</li>");
+    html = html.replace(/((?:<li>.*<\/li>\s*)+)/g, "<ul>$1</ul>");
+
+    // Đoạn văn
+    const blocks = html.split(/\n\s*\n/);
+    html = blocks
+      .map((block) => {
+        block = block.trim();
+        if (!block) return "";
+        if (
+          block.startsWith("<h1") ||
+          block.startsWith("<h2") ||
+          block.startsWith("<h3") ||
+          block.startsWith("<ul") ||
+          block.startsWith("<blockquote") ||
+          block.startsWith("<hr")
+        ) {
+          return block;
+        }
+        return `<p>${block.replace(/\n/g, "<br />")}</p>`;
+      })
+      .join("\n");
+
+    return html;
+  }
+
+  // Xuất tài liệu ôn tập thành file PDF chuẩn A4
+  function exportStudyGuideToPdf() {
+    if (!summary) return;
+
+    const modeLabels: Record<StudyMode, string> = {
+      core_focus: "Phân tích Trọng tâm & Khái niệm Cốt lõi",
+      study_guide: "Đề cương Ôn thi Toàn diện",
+      practice_quiz: "Bộ Câu hỏi & Trắc nghiệm Tự luyện",
+      quick_flashcards: "Thẻ Ghi nhớ Tốc hành (Flashcards 60s)",
+    };
+
+    const modeLabel = modeLabels[studyMode] || "Tài liệu Ôn tập";
+    const docTitle = summaryTitle || "Tài liệu học tập";
+    const dateStr = new Date().toLocaleDateString("vi-VN", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const formattedBody = formatMarkdownToHtml(summary);
+
+    const printHtml = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>[StudySpace] ${docTitle} - ${modeLabel}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 15mm 15mm 15mm;
+    }
+    *, *:before, *:after {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      background: #f8fafc;
+      margin: 0;
+      padding: 0;
+      line-height: 1.65;
+      font-size: 13.5px;
+    }
+    .no-print {
+      position: sticky;
+      top: 0;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+      z-index: 1000;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .no-print-btn {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #ffffff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+    .no-print-btn:hover {
+      filter: brightness(1.1);
+    }
+    .page-container {
+      max-width: 850px;
+      margin: 24px auto;
+      background: #ffffff;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e2e8f0;
+    }
+    .header-banner {
+      border-bottom: 2px solid #0284c7;
+      padding-bottom: 18px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .brand-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: #0284c7;
+      letter-spacing: -0.5px;
+    }
+    .brand-subtitle {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+    .meta-box {
+      text-align: right;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .meta-badge {
+      display: inline-block;
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+    .doc-headline {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 16px 0;
+      line-height: 1.3;
+    }
+    h1, h2, h3, h4 {
+      color: #0369a1;
+      page-break-after: avoid;
+    }
+    h2 {
+      font-size: 16px;
+      font-weight: 800;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 6px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      color: #0369a1;
+    }
+    h3 {
+      font-size: 14.5px;
+      font-weight: 700;
+      margin-top: 18px;
+      margin-bottom: 8px;
+      color: #1e293b;
+    }
+    p {
+      margin: 8px 0;
+      text-align: justify;
+    }
+    ul, ol {
+      padding-left: 22px;
+      margin: 8px 0 14px 0;
+    }
+    li {
+      margin-bottom: 6px;
+    }
+    strong {
+      color: #0f172a;
+    }
+    blockquote {
+      background: #f0f9ff;
+      border-left: 4px solid #0284c7;
+      padding: 10px 16px;
+      margin: 12px 0;
+      border-radius: 0 8px 8px 0;
+      color: #0369a1;
+      font-size: 13px;
+    }
+    code {
+      background: #f1f5f9;
+      color: #0284c7;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+    }
+    hr {
+      border: 0;
+      border-top: 1px solid #e2e8f0;
+      margin: 20px 0;
+    }
+    .footer-note {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 14px;
+      margin-top: 36px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10.5px;
+      color: #94a3b8;
+      page-break-inside: avoid;
+    }
+    @media print {
+      body {
+        background: #ffffff;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .page-container {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      h2, h3 {
+        page-break-after: avoid;
+      }
+      blockquote, p, li {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <div>
+      <strong>📄 Bản In & Xuất File PDF - StudySpace Cloud</strong>
+      <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">
+        Hộp thoại in sẽ tự động mở. Vui lòng chọn <strong>"Lưu dưới dạng PDF" (Save as PDF)</strong> để tải file về máy.
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="no-print-btn" onclick="window.print()">
+        🖨️ Lưu file PDF / In ngay
+      </button>
+      <button class="no-print-btn" style="background: #334155;" onclick="window.close()">
+        ✕ Đóng
+      </button>
+    </div>
+  </div>
+
+  <div class="page-container">
+    <div class="header-banner">
+      <div>
+        <div class="brand-title">StudySpace Cloud</div>
+        <div class="brand-subtitle">Hệ Thống Trợ Lý Học Tập & Ôn Thi AI 2026</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-badge">${modeLabel}</div>
+        <div>Ngày xuất: ${dateStr}</div>
+      </div>
+    </div>
+
+    <h1 class="doc-headline">${docTitle}</h1>
+
+    <div class="content-body">
+      ${formattedBody}
+    </div>
+
+    <div class="footer-note">
+      <span>Được biên soạn tự động bởi StudySpace AI Engine</span>
+      <span>Nền tảng Quản lý Học tập & Lưu trữ Đám mây Sinh viên</span>
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 350);
+    };
+  </script>
+</body>
+</html>`;
+
+    const printWin = window.open("", "_blank");
+    if (printWin) {
+      printWin.document.open();
+      printWin.document.write(printHtml);
+      printWin.document.close();
+    } else {
+      alert("Vui lòng cho phép trình duyệt mở cửa sổ bật lên (pop-up) để xuất file PDF.");
+    }
+  }
+
   // Tải tài liệu ôn tập thành file Markdown (.md)
   function downloadStudyGuide() {
     if (!summary) return;
@@ -891,6 +1226,14 @@ function DocumentsContent() {
                     >
                       {copySuccess ? <CheckIcon size={14} className="text-emerald-400" /> : <CopyIcon size={14} />}
                       <span>{copySuccess ? "Đã sao chép" : "Sao chép"}</span>
+                    </button>
+
+                    <button
+                      onClick={exportStudyGuideToPdf}
+                      className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-rose-500/25 transition hover:brightness-110 active:scale-[0.98]"
+                    >
+                      <FilePdfIcon size={14} />
+                      <span>Xuất file PDF</span>
                     </button>
 
                     <button
